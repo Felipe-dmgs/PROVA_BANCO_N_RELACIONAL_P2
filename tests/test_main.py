@@ -5,8 +5,8 @@ from app.main import app
 
 client = TestClient(app)
 
-@patch('app.main.publicar_rabbitmq')
-@patch('app.main.publicar_kafka')
+@patch('app.main.rabbitmq_service.publish', new_callable=AsyncMock)
+@patch('app.main.kafka_service.publish', new_callable=AsyncMock)
 @patch('app.main.colecao_pedidos.insert_one', new_callable=AsyncMock)
 def test_cadastrar_pedido(mock_insert, mock_kafka, mock_rabbit):
     payload = {

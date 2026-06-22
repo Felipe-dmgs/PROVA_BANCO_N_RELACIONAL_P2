@@ -1,21 +1,40 @@
-import os
-import pika
+import asyncio
+import logging
+import aio_pika
 
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+logger = logging.getLogger(__name__)
 
-def publicar_rabbitmq(pedido_id: str):
-    try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-        channel = connection.channel()
-        channel.queue_declare(queue='fila_pedidos', durable=True)
-        
-        mensagem = f"Pedido criado: {pedido_id}"
-        
-        channel.basic_publish(
-            exchange='',
-            routing_key='fila_pedidos',
-            body=mensagem
+class RabbitMQService:
+    def __init__(self, url: str, queue_name: str):
+        self.url = url
+        self.queue_name = queue_name
+        self.connection = None
+        self.channel = None
+
+    async def connect(self):
+        while True:
+            try:
+                self.connection = await aio_pika.connect_robust(self.url)
+                self.channel = await self.connection.channel()
+                await self.channel.declare_queue(self.queue_name, durable=True)
+                logger.info("Conectado ao RabbitMQ com sucesso!")
+                break
+            except Exception as e:
+                logger.warning(f"RabbitMQ indisponível. Tentando novamente em 3s... Erro: {e}")
+                await asyncio.sleep(3)
+
+    async def publish(self, message: str):
+        if not self.channel:
+            await self.connect()
+            
+        await self.channel.default_exchange.publish(
+            aio_pika.Message(
+                body=message.encode("utf-8"),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+            ),
+            routing_key=self.queue_name,
         )
-        connection.close()
-    except Exception as e:
-        print(f"Erro ao publicar no RabbitMQ: {e}")
+
+    async def close(self):
+        if self.connection:
+            await self.connection.close()

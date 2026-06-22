@@ -49,7 +49,7 @@ services:
       - kafka
     environment:
       - MONGO_URL=${MONGO_URL}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_HOST=${RABBITMQ_URL}
       - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
 
 volumes:
